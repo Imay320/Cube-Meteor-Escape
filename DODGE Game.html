@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meteor Escape</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;500;700&display=swap');
+
+    body {
+      margin: 0;
+      background: linear-gradient(to bottom, #090909, #1a1a2e);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Poppins', sans-serif;
+      color: white;
+      overflow: hidden;
+    }
+
+    canvas {
+      background: #111827;
+      border: 3px solid #00ffe1;
+      border-radius: 18px;
+      box-shadow: 0 0 30px rgba(0, 255, 225, 0.4);
+    }
+
+    .info {
+      position: absolute;
+      top: 18px;
+      text-align: center;
+      width: 100%;
+      color: #ffffff;
+    }
+
+    .info h1 {
+      margin: 0;
+      font-size: 42px;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 4px;
+      color: #00ffe1;
+      text-shadow: 0 0 10px rgba(0,255,225,0.8);
+    }
+
+    .info p {
+      margin-top: 8px;
+      font-size: 18px;
+      color: #d1d5db;
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="info">
+    <h1>Cube Dodge</h1>
+    <p>Move with ◀ ▶ Arrow Keys</p>
+  </div>
+
+  <canvas id="gameCanvas" width="500" height="600"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const player = {
+      x: 220,
+      y: 540,
+      width: 60,
+      height: 60,
+      speed: 7
+    };
+
+    const obstacles = [];
+    let score = 0;
+    let gameOver = false;
+
+    const keys = {
+      left: false,
+      right: false
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') keys.left = true;
+      if (e.key === 'ArrowRight') keys.right = true;
+
+      if (e.key.toLowerCase() === 'r' && gameOver) {
+        restartGame();
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft') keys.left = false;
+      if (e.key === 'ArrowRight') keys.right = false;
+    });
+
+    function createObstacle() {
+      const types = [
+        {
+          color: '#ff4444',
+          width: 50,
+          height: 50,
+          speed: Math.random() * 3 + 4,
+          type: 'meteor'
+        },
+        {
+          color: '#ffaa00',
+          width: 80,
+          height: 25,
+          speed: Math.random() * 2 + 5,
+          type: 'laser'
+        },
+        {
+          color: '#8888ff',
+          width: 40,
+          height: 70,
+          speed: Math.random() * 2 + 3,
+          type: 'robot'
+        }
+      ];
+
+      const obstacleType = types[Math.floor(Math.random() * types.length)];
+
+      obstacles.push({
+        x: Math.random() * (canvas.width - obstacleType.width),
+        y: -100,
+        width: obstacleType.width,
+        height: obstacleType.height,
+        speed: obstacleType.speed,
+        color: obstacleType.color,
+        type: obstacleType.type,
+        rotation: Math.random() * Math.PI
+      });
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      // Player movement
+      if (keys.left && player.x > 0) {
+        player.x -= player.speed;
+      }
+
+      if (keys.right && player.x + player.width < canvas.width) {
+        player.x += player.speed;
+      }
+
+      // Spawn obstacles
+      if (Math.random() < 0.03) {
+        createObstacle();
+      }
+
+      // Update obstacles
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.y += obs.speed;
+
+        // Collision detection
+        if (
+          player.x < obs.x + obs.width &&
+          player.x + player.width > obs.x &&
+          player.y < obs.y + obs.height &&
+          player.y + player.height > obs.y
+        ) {
+          gameOver = true;
+        }
+
+        // Remove off-screen obstacles
+        if (obs.y > canvas.height) {
+          obstacles.splice(i, 1);
+          score++;
+        }
+      }
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = '#00ff99';
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    function drawObstacles() {
+      obstacles.forEach(obs => {
+        ctx.save();
+        ctx.translate(obs.x + obs.width / 2, obs.y + obs.height / 2);
+
+        if (obs.type === 'meteor') {
+          obs.rotation += 0.03;
+          ctx.rotate(obs.rotation);
+
+          ctx.fillStyle = obs.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, obs.width / 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffbb66';
+          ctx.beginPath();
+          ctx.arc(-10, -8, 8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        else if (obs.type === 'laser') {
+          ctx.fillStyle = obs.color;
+          ctx.fillRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
+
+          ctx.fillStyle = '#fff4aa';
+          ctx.fillRect(-obs.width / 2 + 10, -5, obs.width - 20, 10);
+        }
+
+        else if (obs.type === 'robot') {
+          ctx.fillStyle = obs.color;
+          ctx.fillRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(-10, -15, 8, 8);
+          ctx.fillRect(2, -15, 8, 8);
+
+          ctx.fillStyle = '#222';
+          ctx.fillRect(-12, 15, 24, 8);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    function drawScore() {
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 24px Poppins'
+      ctx.fillText('Score: ' + score, 20, 40);
+    }
+
+    function drawGameOver() {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 46px Orbitron'
+      ctx.fillText('Game Over', 140, 250);
+
+      ctx.font = 'bold 24px Poppins'
+      ctx.fillText('Final Score: ' + score, 170, 310);
+      ctx.fillText('Press R to Restart', 140, 360);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawPlayer();
+      drawObstacles();
+      drawScore();
+
+      if (gameOver) {
+        drawGameOver();
+      }
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function restartGame() {
+      obstacles.length = 0;
+      score = 0;
+      gameOver = false;
+      player.x = 220;
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>
